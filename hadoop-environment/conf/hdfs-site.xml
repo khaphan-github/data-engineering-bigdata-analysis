@@ -101,4 +101,12 @@
                         connecting to other datanodes for data transfer.
                 </description>
         </property>
+
+        <property>
+                <name>dfs.datanode.hostname</name>
+                <value>${HOSTNAME}</value>
+                <description>
+                        Use each container's hostname for WebHDFS redirects.
+                </description>
+        </property>
 </configuration>

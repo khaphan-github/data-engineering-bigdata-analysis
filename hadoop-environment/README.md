@@ -1,202 +1,79 @@
-# Hadoop 3.3.6 Multinode Cluster Setup Using WSL2, OpenJDK 11, Docker, and Docker Compose
-This guide provides step-by-step instructions to set up a Hadoop 3.3.6 multinode cluster using WSL2, OpenJDK 11 in Docker containers, orchestrated with Docker Compose.
+# Hadoop + Spark Multinode (Docker Compose)
+This folder provides a Docker Compose setup for a Hadoop 3.3.6 multinode cluster with YARN, plus a local Spark 3.5.1 standalone cluster and a Jupyter notebook container for development.
 
 ## Prerequisites
-* WSL2 enabled on your system
-* Docker and Docker Compose installed
-* Basic understanding of Docker and Hadoop
+* Docker and Docker Compose
+* 8+ GB RAM available for containers
 
-## Setup
-1. Create the Docker Network
-Create a Docker network to allow communication between the Hadoop cluster containers.
-
-```shell
-docker network create hadoop_network
-```
-
-2. Build the Base Docker Image
-Create a Dockerfile for the Hadoop base image.
-
-```dockerfile
-# Use the official OpenJDK 11 image as the base for the build
-FROM openjdk:11-jdk AS jdk
-
-# Use the official Python 3.11 image
-FROM python:3.11
-
-USER root
-
-# --------------------------------------------------------
-# JAVA
-# --------------------------------------------------------
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3-launchpadlib \
-    software-properties-common && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Set the JAVA_HOME environment variable for the AMD64 architecture
-ENV JAVA_HOME=/usr/local/openjdk-11
-
-# Copy OpenJDK from the first stage
-COPY --from=jdk $JAVA_HOME $JAVA_HOME
-
-# --------------------------------------------------------
-# HADOOP
-# --------------------------------------------------------
-ENV HADOOP_VERSION=3.3.6
-ENV HADOOP_URL=https://downloads.apache.org/hadoop/common/hadoop-$HADOOP_VERSION/hadoop-$HADOOP_VERSION.tar.gz
-ENV HADOOP_PREFIX=/opt/hadoop-$HADOOP_VERSION
-ENV HADOOP_CONF_DIR=/etc/hadoop
-ENV MULTIHOMED_NETWORK=1
-ENV USER=root
-ENV HADOOP_HOME=/opt/hadoop-$HADOOP_VERSION
-ENV PATH $HADOOP_PREFIX/bin/:$PATH
-ENV PATH $HADOOP_HOME/bin/:$PATH
-
-RUN set -x \
-    && curl -fSL "$HADOOP_URL" -o /tmp/hadoop.tar.gz \
-    && tar -xvf /tmp/hadoop.tar.gz -C /opt/ \
-    && rm /tmp/hadoop.tar.gz*
-
-RUN ln -s /opt/hadoop-$HADOOP_VERSION/etc/hadoop /etc/hadoop
-RUN mkdir /opt/hadoop-$HADOOP_VERSION/logs
-RUN mkdir /hadoop-data
-
-USER root
-
-COPY conf/core-site.xml $HADOOP_CONF_DIR/core-site.xml
-COPY conf/hdfs-site.xml $HADOOP_CONF_DIR/hdfs-site.xml
-COPY conf/mapred-site.xml $HADOOP_CONF_DIR/mapred-site.xml
-COPY conf/yarn-site.xml $HADOOP_CONF_DIR/yarn-site.xml
-```
-
-Build the Docker image.
-
-```shell
-docker build -t hadoop-base:3.3.6 .
-```
-
-3. Create Docker Compose File
-Create a docker-compose.yml file to define the Hadoop services.
-
-```yaml
-version: "2.4"
-
-services:
-  namenode:
-    build: ./namenode
-    container_name: namenode
-    volumes:
-      - hadoop_namenode:/hadoop/dfs/name
-      - ./data/:/hadoop-data/input
-      - ./map_reduce/:/hadoop-data/map_reduce
-    environment:
-      - CLUSTER_NAME=test
-    ports:
-      - "9870:9870"
-      - "8020:8020"
-    networks:
-      - hadoop_network
-
-  resourcemanager:
-    build: ./resourcemanager
-    container_name: resourcemanager
-    restart: on-failure
-    depends_on:
-      - namenode
-      - datanode1
-      - datanode2
-      - datanode3
-    ports:
-      - "8089:8088"
-    networks:
-      - hadoop_network
-
-  historyserver:
-    build: ./historyserver
-    container_name: historyserver
-    depends_on:
-      - namenode
-      - datanode1
-      - datanode2
-    volumes:
-      - hadoop_historyserver:/hadoop/yarn/timeline
-    ports:
-      - "8188:8188"
-    networks:
-      - hadoop_network
-
-  nodemanager1:
-    build: ./nodemanager
-    container_name: nodemanager1
-    depends_on:
-      - namenode
-      - datanode1
-      - datanode2
-    ports:
-      - "8042:8042"
-    networks:
-      - hadoop_network
-
-  datanode1:
-    build: ./datanode
-    container_name: datanode1
-    depends_on:
-      - namenode
-    volumes:
-      - hadoop_datanode1:/hadoop/dfs/data
-    networks:
-      - hadoop_network
-
-  datanode2:
-    build: ./datanode
-    container_name: datanode2
-    depends_on:
-      - namenode
-    volumes:
-      - hadoop_datanode2:/hadoop/dfs/data
-    networks:
-      - hadoop_network
-
-  datanode3:
-    build: ./datanode
-    container_name: datanode3
-    depends_on:
-      - namenode
-    volumes:
-      - hadoop_datanode3:/hadoop/dfs/data
-    networks:
-      - hadoop_network
-
-volumes:
-  hadoop_namenode:
-  hadoop_datanode1:
-  hadoop_datanode2:
-  hadoop_datanode3:
-  hadoop_historyserver:
-
-networks:
-  hadoop_network:
-    name: hadoop_network
-    external: true
-```
-
-4. Start the Hadoop Cluster
-Run the script to create the network, build the Docker image, and start the Hadoop cluster.
+## Quick Start
+Run the provided script (recommended):
 
 ```bash
-#!/bin/bash
-
-docker network create hadoop_network
-docker build -t hadoop-base:3.3.6 .
-docker-compose up -d
-```
-
-Save the script as start-cluster.sh and run it.
-
-```bash
+cd hadoop-environment
 bash start-cluster.sh
 ```
+
+Or run the steps manually:
+
+```bash
+cd hadoop-environment
+docker network create hadoop_network
+docker build -t hadoop-base:3.3.6 .
+docker compose up -d
+```
+
+Stop the stack:
+
+```bash
+cd hadoop-environment
+docker compose down
+```
+
+Remove volumes (destroys HDFS data):
+
+```bash
+cd hadoop-environment
+docker compose down -v
+```
+
+## Services and Ports
+* NameNode UI: `http://localhost:9870`
+* ResourceManager UI: `http://localhost:8089`
+* HistoryServer UI: `http://localhost:8188`
+* NodeManager UI: `http://localhost:8042`
+* DataNode UIs: `http://localhost:9864`, `http://localhost:9865`, `http://localhost:9866`
+* Spark Master UI: `http://localhost:8090`
+* Spark Worker UIs: `http://localhost:8091`, `http://localhost:8092`
+* Spark Master RPC: `spark://localhost:7077`
+* Jupyter: `http://localhost:8888`
+
+If Jupyter asks for a token, check the container logs:
+
+```bash
+docker compose logs -f notebook
+```
+
+## Data and Mounts
+* `hadoop-environment/data` maps to `/hadoop-data/input` in Hadoop and `/opt/spark/data` in Spark
+* `hadoop-environment/map_reduce` maps to `/hadoop-data/map_reduce` in Hadoop
+* `hadoop-environment/apps` maps to `/opt/spark/apps` in Spark
+* HDFS and YARN history data are persisted under `hadoop-environment/volumes` (see `docker-compose.yml`)
+
+## Useful Commands
+Check container status:
+
+```bash
+docker compose ps
+```
+
+Follow logs:
+
+```bash
+docker compose logs -f
+```
+
+HDFS command cheat sheet:
+* See `../HDFS_COMMAND.md`
 
 ## Accessing the Hadoop Cluster
 

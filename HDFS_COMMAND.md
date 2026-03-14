@@ -12,7 +12,7 @@ docker exec -it namenode bash
 # Create folder
 hdfs dfs -mkdir -p /tiktok
 hdfs dfs -ls /tiktok
-
+hdfs dfs -get /tiktok/run-wordcount.sh .
 # Upload file (create)
 hdfs dfs -put /hadoop-data/input/yourfile /tiktok/
 

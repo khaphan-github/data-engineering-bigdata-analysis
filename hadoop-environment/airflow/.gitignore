@@ -1,6 +1,7 @@
 .env
 /postgres/
 /airflow/logs/
+/airflow/deps/
 /airflow/packages-cache/
 /airflow/output/
 /airflow/jars/

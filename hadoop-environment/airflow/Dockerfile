@@ -8,7 +8,6 @@ RUN apt-get update \
 
 ARG SPARK_VERSION=3.5.1
 ARG HADOOP_VERSION=3
-COPY deps/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz /tmp/spark.tgz
 RUN tar -xzf /tmp/spark.tgz -C /opt \
     && ln -s /opt/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} /opt/spark \
     && rm -f /tmp/spark.tgz
@@ -25,5 +24,4 @@ ENV PYTHONPATH=/opt/spark/python:/opt/spark/python/lib/py4j-0.10.9.7-src.zip:/op
 # PostgreSQL JDBC driver for Spark reads (provided locally)
 USER root
 RUN mkdir -p /opt/airflow/jars
-COPY deps/postgresql-42.7.3.jar /opt/airflow/jars/postgresql-42.7.3.jar
 USER airflow

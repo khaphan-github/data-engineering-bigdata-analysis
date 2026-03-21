@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hadoop Cluster Gateway</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        margin: 2.5rem;
+        color: #1e1f23;
+        background: #f7f8fb;
+      }
+      h1 {
+        margin-bottom: 0.5rem;
+        font-size: 1.8rem;
+      }
+      p {
+        margin-top: 0;
+        color: #4c4f59;
+      }
+      ul {
+        padding-left: 1.25rem;
+      }
+      li {
+        margin: 0.4rem 0;
+      }
+      a {
+        color: #1a4fff;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .note {
+        margin-top: 1.5rem;
+        font-size: 0.9rem;
+        color: #6b6f7a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Hadoop Cluster Gateway</h1>
+    <p>Quick links proxied through Nginx.</p>
+    <ul>
+      <li><a href="/namenode/">NameNode UI</a></li>
+      <li><a href="/resourcemanager/">ResourceManager UI</a></li>
+      <li><a href="/historyserver/">HistoryServer UI</a></li>
+      <li><a href="/spark-master/">Spark Master UI</a></li>
+      <li><a href="/spark-worker-1/">Spark Worker 1 UI</a></li>
+      <li><a href="/spark-worker-2/">Spark Worker 2 UI</a></li>
+      <li><a href="/airflow/">Airflow UI</a></li>
+      <li><a href="/notebook/">Notebook UI</a></li>
+    </ul>
+    <div class="note">
+      Some UIs may expect to be served at root. If a page breaks, open the direct host port instead.
+    </div>
+  </body>
+</html>

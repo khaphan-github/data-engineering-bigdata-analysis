@@ -2,29 +2,47 @@
 
 ```mermaid
 flowchart LR
-  subgraph Hadoop
-    NN[NameNode] <--> |metadata + block reports| DN[DataNodes]
-    RM[ResourceManager] <--> |scheduling + container status| NM[NodeManager]
-    RM --> |job history UI| HS[HistoryServer]
-  end
-
-  subgraph Spark
-    SM[Spark Master] <--> |task scheduling + status| SW[Spark Workers]
-  end
-
   subgraph Client
     NB[Jupyter Notebook]
-    D[(./data, ./apps, ./map_reduce)]
-    V[(./volumes)]
   end
 
-  NB --> |submit Spark jobs| SM
-  NB --> |read/write HDFS| NN
+  subgraph Internal
+    subgraph Source_System
+      PG[(PostgreSQL)]
+    end
 
-  D --> |input + apps| NN
-  D --> |data + apps| SM
+    subgraph Ingestion
+      Batch[Batch Ingestion Jobs]
+      KF[Kafka - Streaming]
+    end
 
-  V --> |persist metadata| NN
-  V --> |persist blocks| DN
-  V --> |persist history| HS
+    subgraph Orchestration
+      AF[Airflow Orchestrator]
+    end
+
+    subgraph Processing
+      SP[Spark]
+    end
+
+    subgraph Hadoop
+      NN[NameNode] <--> DN[DataNodes]
+      RM[ResourceManager] <--> NM[NodeManager]
+    end
+  end
+
+
+  %% Flow
+  Source_System -->|stream| KF
+  Source_System -->|batch extract| Batch
+
+  KF --> SP
+  AF --> SP
+  Batch --> SP
+
+  SP -->|use YARN| Hadoop
+  RM --> NM
+
+  Client -->|Request| Nginx
+  Nginx -->|Forward| Internal
+
 ```

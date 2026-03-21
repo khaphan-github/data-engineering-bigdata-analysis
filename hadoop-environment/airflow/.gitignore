@@ -1,0 +1,8 @@
+.env
+/postgres/
+/airflow/logs/
+/airflow/packages-cache/
+/airflow/output/
+/airflow/jars/
+__pycache__/
+airflow.cfg

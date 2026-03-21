@@ -1,6 +1,105 @@
 version: "2.4"
 
+x-airflow-common: &airflow-common
+  build: ./airflow
+  image: ${AIRFLOW_IMAGE_NAME:-airflow-spark:2.10.2}
+  entrypoint: /entrypoint.sh
+  env_file:
+    - ./.env
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+    AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres_airflow/airflow
+    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres_airflow/airflow
+    AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
+    AIRFLOW__CORE__FERNET_KEY: ''
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__API__AUTH_BACKEND: 'airflow.api.auth.backend.basic_auth'
+    AIRFLOW__CORE__LOAD_REQUIREMENTS: './requirements.txt'
+    AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: 5
+    SPARK_MASTER_URL: ${SPARK_MASTER_URL:-spark://spark-master:7077}
+  volumes:
+    - ./airflow/airflow:/opt/airflow
+    - ./airflow/deps:/opt/airflow/deps
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on:
+    - postgres_airflow
+    - redis
+  networks:
+    - hadoop_network
+
+x-datanode-base: &datanode_base
+  build: ./datanode
+  mem_limit: 2g
+  cpus: "1.0"
+  depends_on:
+    - namenode
+  networks:
+    - hadoop_network
+
+x-spark-base: &spark_base
+  build: ./spark
+  image: spark-local:3.5.1
+  volumes:
+    - ./volumes/spark/data:/opt/spark/data
+    - ./volumes/spark/apps:/opt/spark/apps
+  networks:
+    - hadoop_network
+
+x-spark-worker-deploy: &spark_worker_deploy
+  resources:
+    limits:
+      cpus: '2.0'
+      memory: 3G
+    reservations:
+      cpus: '1.0'
+      memory: 1G
+  restart_policy:
+    condition: on-failure
+    delay: 10s
+    max_attempts: 3
+
 services:
+  postgres_airflow:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - ./airflow/postgres:/var/lib/postgresql/data
+    networks:
+      - hadoop_network
+
+  redis:
+    image: redis:latest
+    networks:
+      - hadoop_network
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+
+  airflow-worker:
+    <<: *airflow-common
+    command: celery worker
+
+  airflow-init:
+    <<: *airflow-common
+    command: version && airflow db init
+    environment:
+      <<: *airflow-common-env
+      _AIRFLOW_DB_UPGRADE: 'true'
+      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-airflow}
+      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
+
   namenode:
     build: ./namenode
     container_name: namenode
@@ -9,10 +108,10 @@ services:
     cpus: "1.0"
     volumes:
       - ./volumes/namenode:/hadoop/dfs/name
-      - ./data/:/hadoop-data/input
-      - ./map_reduce/:/hadoop-data/map_reduce
+      - ./volumes/data:/hadoop-data/input
+      - ./volumes/map_reduce:/hadoop-data/map_reduce
     environment:
-      - CLUSTER_NAME=test
+      - CLUSTER_NAME=${CLUSTER_NAME}
     ports:
       - "9870:9870"
       - "8020:8020"
@@ -69,49 +168,31 @@ services:
       - hadoop_network
 
   datanode1:
-    build: ./datanode
+    <<: *datanode_base
     container_name: datanode1
     hostname: datanode1
-    mem_limit: 2g
-    cpus: "1.0"
-    depends_on:
-      - namenode
     volumes:
       - ./volumes/datanode1:/hadoop/dfs/data
     ports:
       - "9864:9864"
-    networks:
-      - hadoop_network
 
   datanode2:
-    build: ./datanode
+    <<: *datanode_base
     container_name: datanode2
     hostname: datanode2
-    mem_limit: 2g
-    cpus: "1.0"
-    depends_on:
-      - namenode
     volumes:
       - ./volumes/datanode2:/hadoop/dfs/data
     ports:
       - "9865:9864"
-    networks:
-      - hadoop_network
 
   datanode3:
-    build: ./datanode
+    <<: *datanode_base
     container_name: datanode3
     hostname: datanode3
-    mem_limit: 2g
-    cpus: "1.0"
-    depends_on:
-      - namenode
     volumes:
       - ./volumes/datanode3:/hadoop/dfs/data
     ports:
       - "9866:9864"
-    networks:
-      - hadoop_network
 
   notebook:
     build: ./notebook
@@ -122,7 +203,7 @@ services:
     depends_on:
       - namenode
     volumes:
-      - ./:/workspace
+      - ./volumes/workspace:/workspace
     ports:
       - "8888:8888"
     networks:
@@ -133,27 +214,21 @@ services:
       timeout: 5s
       retries: 12
   spark-master:
-    build: ./spark
-    image: spark-local:3.5.1
+    <<: *spark_base
     container_name: spark-master
     mem_limit: 4g
     cpus: "2.0"
     environment:
-      - SPARK_MODE=master
-      - SPARK_MASTER_HOST=spark-master
-      - SPARK_MASTER_PORT=7077
-      - SPARK_MASTER_WEBUI_PORT=8080
-      - SPARK_HOME=/opt/spark
-      - PYSPARK_PYTHON=/usr/bin/python3.11
-      - PYSPARK_DRIVER_PYTHON=/usr/bin/python3.11
+      - SPARK_MODE=${SPARK_MODE}
+      - SPARK_MASTER_HOST=${SPARK_MASTER_HOST}
+      - SPARK_MASTER_PORT=${SPARK_MASTER_PORT}
+      - SPARK_MASTER_WEBUI_PORT=${SPARK_MASTER_WEBUI_PORT}
+      - SPARK_HOME=${SPARK_HOME}
+      - PYSPARK_PYTHON=${PYSPARK_PYTHON}
+      - PYSPARK_DRIVER_PYTHON=${PYSPARK_DRIVER_PYTHON}
     ports:
       - "8090:8080"  # Spark Master Web UI
       - "7077:7077"  # Spark Master Port
-    volumes:
-      - ./data:/opt/spark/data
-      - ./apps:/opt/spark/apps
-    networks:
-      - hadoop_network
     deploy:
       resources:
         limits:
@@ -169,80 +244,114 @@ services:
     command: bash -c "/opt/spark/bin/spark-class org.apache.spark.deploy.master.Master --host spark-master --port 7077 --webui-port 8080"
 
   spark-worker-1:
-    build: ./spark
-    image: spark-local:3.5.1
+    <<: *spark_base
     container_name: spark-worker-1
     mem_limit: 3g
     cpus: "2.0"
     environment:
-      - SPARK_MASTER_URL=spark://spark-master:7077
-      - SPARK_WORKER_CORES=2
-      - SPARK_WORKER_MEMORY=2g
-      - SPARK_WORKER_PORT=7081
-      - SPARK_WORKER_WEBUI_PORT=8081
-      - PYSPARK_PYTHON=/usr/bin/python3.11
-      - PYSPARK_DRIVER_PYTHON=/usr/bin/python3.11
+      - SPARK_MASTER_URL=${SPARK_MASTER_URL}
+      - SPARK_WORKER_CORES=${SPARK_WORKER_CORES}
+      - SPARK_WORKER_MEMORY=${SPARK_WORKER_MEMORY}
+      - SPARK_WORKER_PORT=${SPARK_WORKER_PORT_1}
+      - SPARK_WORKER_WEBUI_PORT=${SPARK_WORKER_WEBUI_PORT_1}
+      - PYSPARK_PYTHON=${PYSPARK_PYTHON}
+      - PYSPARK_DRIVER_PYTHON=${PYSPARK_DRIVER_PYTHON}
     ports:
       - "8091:8081"  # Worker Web UI
-    volumes:
-      - ./data:/opt/spark/data
-      - ./apps:/opt/spark/apps
     depends_on:
       - spark-master
-    networks:
-      - hadoop_network
     deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 3G
-        reservations:
-          cpus: '1.0'
-          memory: 1G
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 3
+      <<: *spark_worker_deploy
     command: bash -c "/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 --cores 2 --memory 2g --webui-port 8081"
 
   spark-worker-2:
-    build: ./spark
-    image: spark-local:3.5.1
+    <<: *spark_base
     container_name: spark-worker-2
     mem_limit: 3g
     cpus: "2.0"
     environment:
-      - SPARK_MASTER_URL=spark://spark-master:7077
-      - SPARK_WORKER_CORES=2
-      - SPARK_WORKER_MEMORY=2g
-      - SPARK_WORKER_PORT=7082
-      - SPARK_WORKER_WEBUI_PORT=8082
-      - PYSPARK_PYTHON=/usr/bin/python3.11
-      - PYSPARK_DRIVER_PYTHON=/usr/bin/python3.11
+      - SPARK_MASTER_URL=${SPARK_MASTER_URL}
+      - SPARK_WORKER_CORES=${SPARK_WORKER_CORES}
+      - SPARK_WORKER_MEMORY=${SPARK_WORKER_MEMORY}
+      - SPARK_WORKER_PORT=${SPARK_WORKER_PORT_2}
+      - SPARK_WORKER_WEBUI_PORT=${SPARK_WORKER_WEBUI_PORT_2}
+      - PYSPARK_PYTHON=${PYSPARK_PYTHON}
+      - PYSPARK_DRIVER_PYTHON=${PYSPARK_DRIVER_PYTHON}
     ports:
       - "8092:8082"  # Worker Web UI
-    volumes:
-      - ./data:/opt/spark/data
-      - ./apps:/opt/spark/apps
     depends_on:
       - spark-master
+    deploy:
+      <<: *spark_worker_deploy
+    command: bash -c "/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 --cores 2 --memory 2g --webui-port 8082"
+  # Soruce system:
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    hostname: postgres
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./volumes/postgres:/var/lib/postgresql/data
     networks:
       - hadoop_network
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 3G
-        reservations:
-          cpus: '1.0'
-          memory: 1G
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 3
-    command: bash -c "/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 --cores 2 --memory 2g --webui-port 8082"
 
+  jobs:
+    build: ./jobs
+    container_name: jobs
+    hostname: jobs
+    depends_on:
+      - postgres
+    environment:
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - CLICKSTREAM_TABLE=${CLICKSTREAM_TABLE}
+      - BATCH_SIZE=${BATCH_SIZE}
+      - INTERVAL_SECONDS=${INTERVAL_SECONDS}
+    networks:
+      - hadoop_network
+
+  # nginx:
+    # image: nginx:1.27-alpine
+    # container_name: nginx
+    # hostname: nginx
+    # depends_on:
+    #   - postgres_airflow
+    #   - redis
+    #   - airflow-webserver
+    #   - airflow-scheduler
+    #   - airflow-worker
+    #   - airflow-init
+    #   - namenode
+    #   - nodemanager1
+    #   - datanode1
+    #   - datanode2
+    #   - datanode3
+    #   - notebook
+    #   - resourcemanager
+    #   - historyserver
+    #   - spark-master
+    #   - spark-worker-1
+    #   - spark-worker-2
+    #   - postgres
+    #   - jobs
+    # ports:
+    #   - "8085:80"
+    # volumes:
+    #   - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    #   - ./nginx/html:/usr/share/nginx/html:ro
+    # networks:
+    #   - hadoop_network
+    # restart: unless-stopped
+  
 networks:
   hadoop_network:
     name: hadoop_network
-    external: true
+    driver: bridge

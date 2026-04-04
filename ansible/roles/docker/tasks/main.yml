@@ -1,0 +1,34 @@
+---
+- name: Install Docker packages on Debian/Ubuntu
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - docker-compose-plugin
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Install Docker packages on RHEL/CentOS
+  ansible.builtin.yum:
+    name:
+      - docker
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Ensure docker service is started and enabled
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Ensure docker group exists
+  ansible.builtin.group:
+    name: docker
+    state: present
+
+- name: Add users to docker group
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: docker
+    append: true
+  loop: "{{ docker_users | default([]) }}"

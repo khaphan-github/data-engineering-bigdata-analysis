@@ -1,0 +1,25 @@
+---
+- name: Ensure project root exists
+  ansible.builtin.file:
+    path: "{{ project_root }}"
+    state: directory
+    mode: "0755"
+
+- name: Sync project sources to remote hosts
+  ansible.posix.synchronize:
+    src: "{{ controller_project_root }}/"
+    dest: "{{ project_root }}/"
+    delete: false
+    recursive: true
+    rsync_opts: "{{ rsync_excludes | map('regex_replace', '^(.*)$', '--exclude=\\1') | list }}"
+
+- name: Ensure shared docker network exists
+  ansible.builtin.command: "docker network create {{ cluster_network_name }}"
+  register: docker_network_create
+  failed_when: docker_network_create.rc not in [0, 1]
+  changed_when: docker_network_create.rc == 0
+
+- name: Bring up stack with docker compose
+  ansible.builtin.command: "docker compose -f {{ compose_file }} -p {{ compose_project_name }} {{ compose_up_flags }}"
+  args:
+    chdir: "{{ project_root }}"

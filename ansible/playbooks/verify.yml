@@ -1,0 +1,20 @@
+---
+- name: Verify docker and compose on cluster nodes
+  hosts: cluster_nodes
+  become: true
+  tasks:
+    - name: Check docker version
+      ansible.builtin.command: docker --version
+      register: docker_version
+      changed_when: false
+
+    - name: Check docker compose version
+      ansible.builtin.command: docker compose version
+      register: compose_version
+      changed_when: false
+
+    - name: Print versions
+      ansible.builtin.debug:
+        msg:
+          - "{{ inventory_hostname }} -> {{ docker_version.stdout }}"
+          - "{{ inventory_hostname }} -> {{ compose_version.stdout }}"

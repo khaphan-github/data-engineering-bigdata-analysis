@@ -1,0 +1,21 @@
+---
+- name: Install base packages on Debian/Ubuntu
+  ansible.builtin.apt:
+    name:
+      - curl
+      - ca-certificates
+      - gnupg
+      - lsb-release
+      - rsync
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Install base packages on RHEL/CentOS
+  ansible.builtin.yum:
+    name:
+      - curl
+      - ca-certificates
+      - rsync
+    state: present
+  when: ansible_os_family == "RedHat"

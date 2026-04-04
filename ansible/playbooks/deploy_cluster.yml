@@ -1,0 +1,6 @@
+---
+- name: Deploy cluster stack on all nodes
+  hosts: cluster_nodes
+  become: true
+  roles:
+    - role: cluster_deploy

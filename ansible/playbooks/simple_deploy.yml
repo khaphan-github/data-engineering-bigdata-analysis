@@ -1,0 +1,49 @@
+---
+- name: Simple deploy cluster to all nodes
+  hosts: cluster_nodes
+  become: true
+  tasks:
+    - name: Install Docker and rsync (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - docker-compose-plugin
+          - rsync
+        state: present
+        update_cache: true
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure Docker service is running
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Create project directory
+      ansible.builtin.file:
+        path: "{{ project_root }}"
+        state: directory
+        mode: "0755"
+
+    - name: Sync project to remote host
+      ansible.posix.synchronize:
+        src: "{{ controller_project_root }}/"
+        dest: "{{ project_root }}/"
+        delete: false
+        recursive: true
+        rsync_opts:
+          - "--exclude=.git"
+          - "--exclude=.venv"
+          - "--exclude=volumes"
+
+    - name: Create docker network if missing
+      ansible.builtin.command: "docker network create {{ cluster_network_name }}"
+      register: network_create
+      failed_when: network_create.rc not in [0, 1]
+      changed_when: network_create.rc == 0
+
+    - name: Run docker compose
+      ansible.builtin.command: >-
+        docker compose -f {{ compose_file }} -p {{ compose_project_name }} up -d --build
+      args:
+        chdir: "{{ project_root }}"

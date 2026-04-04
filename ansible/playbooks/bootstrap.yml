@@ -1,0 +1,7 @@
+---
+- name: Prepare all cluster nodes
+  hosts: cluster_nodes
+  become: true
+  roles:
+    - role: common
+    - role: docker

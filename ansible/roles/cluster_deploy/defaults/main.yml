@@ -1,0 +1,10 @@
+---
+rsync_excludes:
+  - .git
+  - .venv
+  - volumes
+  - __pycache__
+  - .pytest_cache
+  - .mypy_cache
+
+compose_up_flags: "up -d --build"

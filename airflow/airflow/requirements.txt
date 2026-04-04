@@ -1,7 +1,7 @@
 # Airflow providers for development
 apache-airflow-providers-apache-spark==4.6.0
 apache-airflow-providers-postgres==5.13.0
-
+great_expectations
 # Dev tools (optional)
 pytest==8.3.2
 ruff==0.6.9

@@ -318,6 +318,28 @@ services:
     networks:
       - hadoop_network
 
+  # great-expectations:
+  #   build: ./great_expectations
+  #   container_name: great-expectations
+  #   hostname: great-expectations
+  #   depends_on:
+  #     - postgres
+  #   environment:
+  #     - GX_HOME=/opt/gx/project
+  #     - POSTGRES_HOST=${POSTGRES_HOST}
+  #     - POSTGRES_PORT=${POSTGRES_PORT}
+  #     - POSTGRES_DB=${POSTGRES_DB}
+  #     - POSTGRES_USER=${POSTGRES_USER}
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+  #   volumes:
+  #     - ./great_expectations:/opt/gx
+  #     - ./volumes/workspace:/workspace
+  #   ports:
+  #     - "8093:8093"
+  #   command: bash -lc "sleep infinity"
+  #   networks:
+  #     - hadoop_network
+
   # nginx:
     # image: nginx:1.27-alpine
     # container_name: nginx

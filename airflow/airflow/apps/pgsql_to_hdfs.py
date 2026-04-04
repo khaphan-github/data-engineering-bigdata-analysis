@@ -4,6 +4,12 @@ import os
 
 from pyspark.sql import SparkSession
 
+'''
+Workflow
+1. Colect data from PostgreSQL using Spark JDBC
+2. Validate data quality using Great Expectations
+3. Write data to HDFS in Parquet format
+'''
 
 def _env(name: str, default: str) -> str:
     value = os.getenv(name)

@@ -95,6 +95,22 @@ docker compose down -v
 * Spark Master RPC: `spark://localhost:7077`
 * Jupyter: `http://localhost:8888`
 
+## Screenshots
+### Cluster Overview
+![Cluster Overview](docs/imgs/cluster.png)
+
+### Airflow
+![Airflow](docs/imgs/airflow.png)
+
+### NodeManager
+![NodeManager](docs/imgs/nodemanager.png)
+
+### Spark Master
+![Spark Master](docs/imgs/sparkmaste.png)
+
+### Data Analysis
+![Data Analysis](docs/imgs/dataanalysis.png)
+
 ## Iceberg Support
 Iceberg runtime is preloaded in both `spark` and `airflow` images, using a Hadoop catalog on HDFS.
 

@@ -95,6 +95,24 @@ docker compose down -v
 * Spark Master RPC: `spark://localhost:7077`
 * Jupyter: `http://localhost:8888`
 
+## Iceberg Support
+Iceberg runtime is preloaded in both `spark` and `airflow` images, using a Hadoop catalog on HDFS.
+
+Environment variables in `.env`:
+* `SPARK_ICEBERG_CATALOG` (default: `hadoop_catalog`)
+* `SPARK_ICEBERG_WAREHOUSE` (default: `hdfs://namenode:8020/user/hive/warehouse`)
+* `SPARK_ICEBERG_NAMESPACE` (default: `raw`)
+
+To enable Iceberg write mode for ingestion jobs, set `ICEBERG_TABLE` before running DAG/task.  
+Example: `ICEBERG_TABLE=clickstream`
+
+Rebuild required images after this change:
+
+```bash
+docker compose build spark-master spark-worker-1 spark-worker-2 airflow-webserver airflow-scheduler airflow-worker airflow-init
+docker compose up -d
+```
+
 If Jupyter asks for a token, check the container logs:
 
 ```bash

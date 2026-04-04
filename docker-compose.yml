@@ -1,5 +1,9 @@
 version: "2.4"
 
+x-resource-2gb: &resource_2gb
+  mem_limit: 2g
+  mem_reservation: 2g
+
 x-airflow-common: &airflow-common
   build: ./airflow
   image: ${AIRFLOW_IMAGE_NAME:-airflow-spark:2.10.2}
@@ -30,7 +34,7 @@ x-airflow-common: &airflow-common
 
 x-datanode-base: &datanode_base
   build: ./datanode
-  mem_limit: 2g
+  <<: *resource_2gb
   cpus: "1.0"
   depends_on:
     - namenode
@@ -46,21 +50,9 @@ x-spark-base: &spark_base
   networks:
     - hadoop_network
 
-x-spark-worker-deploy: &spark_worker_deploy
-  resources:
-    limits:
-      cpus: '2.0'
-      memory: 3G
-    reservations:
-      cpus: '1.0'
-      memory: 1G
-  restart_policy:
-    condition: on-failure
-    delay: 10s
-    max_attempts: 3
-
 services:
   postgres_airflow:
+    <<: *resource_2gb
     image: postgres:13
     environment:
       POSTGRES_USER: airflow
@@ -72,26 +64,27 @@ services:
       - hadoop_network
 
   redis:
+    <<: *resource_2gb
     image: redis:latest
     networks:
       - hadoop_network
 
   airflow-webserver:
-    <<: *airflow-common
+    <<: [*airflow-common, *resource_2gb]
     command: webserver
     ports:
       - "8080:8080"
 
   airflow-scheduler:
-    <<: *airflow-common
+    <<: [*airflow-common, *resource_2gb]
     command: scheduler
 
   airflow-worker:
-    <<: *airflow-common
+    <<: [*airflow-common, *resource_2gb]
     command: celery worker
 
   airflow-init:
-    <<: *airflow-common
+    <<: [*airflow-common, *resource_2gb]
     command: version && airflow db init
     environment:
       <<: *airflow-common-env
@@ -101,10 +94,10 @@ services:
       _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
 
   namenode:
+    <<: *resource_2gb
     build: ./namenode
     container_name: namenode
     hostname: namenode
-    mem_limit: 2g
     cpus: "1.0"
     volumes:
       - ./volumes/namenode:/hadoop/dfs/name
@@ -119,10 +112,10 @@ services:
       - hadoop_network
 
   resourcemanager:
+    <<: *resource_2gb
     build: ./resourcemanager
     container_name: resourcemanager
     hostname: resourcemanager
-    mem_limit: 1g
     cpus: "1.0"
     restart: on-failure
     depends_on:
@@ -136,10 +129,10 @@ services:
       - hadoop_network
 
   historyserver:
+    <<: *resource_2gb
     build: ./historyserver
     container_name: historyserver
     hostname: historyserver
-    mem_limit: 1g
     cpus: "0.5"
     depends_on:
       - namenode
@@ -153,10 +146,10 @@ services:
       - hadoop_network
 
   nodemanager1:
+    <<: *resource_2gb
     build: ./nodemanager
     container_name: nodemanager1
     hostname: nodemanager1
-    mem_limit: 2g
     cpus: "1.0"
     depends_on:
       - namenode
@@ -195,10 +188,10 @@ services:
       - "9866:9864"
 
   notebook:
+    <<: *resource_2gb
     build: ./notebook
     container_name: notebook
     hostname: notebook
-    mem_limit: 2g
     cpus: "1.0"
     depends_on:
       - namenode
@@ -216,7 +209,6 @@ services:
   spark-master:
     <<: *spark_base
     container_name: spark-master
-    mem_limit: 4g
     cpus: "2.0"
     environment:
       - SPARK_MODE=${SPARK_MODE}
@@ -229,24 +221,11 @@ services:
     ports:
       - "8090:8080"  # Spark Master Web UI
       - "7077:7077"  # Spark Master Port
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 4G
-        reservations:
-          cpus: '1.0'
-          memory: 2G
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 3
     command: bash -c "/opt/spark/bin/spark-class org.apache.spark.deploy.master.Master --host spark-master --port 7077 --webui-port 8080"
 
   spark-worker-1:
     <<: *spark_base
     container_name: spark-worker-1
-    mem_limit: 3g
     cpus: "2.0"
     environment:
       - SPARK_MASTER_URL=${SPARK_MASTER_URL}
@@ -260,14 +239,11 @@ services:
       - "8091:8081"  # Worker Web UI
     depends_on:
       - spark-master
-    deploy:
-      <<: *spark_worker_deploy
     command: bash -c "/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 --cores 2 --memory 2g --webui-port 8081"
 
   spark-worker-2:
     <<: *spark_base
     container_name: spark-worker-2
-    mem_limit: 3g
     cpus: "2.0"
     environment:
       - SPARK_MASTER_URL=${SPARK_MASTER_URL}
@@ -281,11 +257,10 @@ services:
       - "8092:8082"  # Worker Web UI
     depends_on:
       - spark-master
-    deploy:
-      <<: *spark_worker_deploy
     command: bash -c "/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 --cores 2 --memory 2g --webui-port 8082"
   # Soruce system:
   postgres:
+    <<: *resource_2gb
     image: postgres:15
     container_name: postgres
     hostname: postgres
@@ -301,6 +276,7 @@ services:
       - hadoop_network
 
   jobs:
+    <<: *resource_2gb
     build: ./jobs
     container_name: jobs
     hostname: jobs
@@ -313,6 +289,7 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - CLICKSTREAM_TABLE=${CLICKSTREAM_TABLE}
+      - ECOMMERCE_TABLE=${ECOMMERCE_TABLE}
       - BATCH_SIZE=${BATCH_SIZE}
       - INTERVAL_SECONDS=${INTERVAL_SECONDS}
     networks:

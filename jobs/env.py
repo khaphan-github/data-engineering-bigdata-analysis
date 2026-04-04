@@ -27,6 +27,7 @@ class Config:
     postgres_user: str
     postgres_password: str
     table_name: str
+    ecommerce_table_name: str
     batch_size: int
     interval_seconds: int
 
@@ -39,6 +40,7 @@ def load_config() -> Config:
         postgres_user=_get_env("POSTGRES_USER", "admin"),
         postgres_password=_get_env("POSTGRES_PASSWORD", "admin"),
         table_name=_get_env("CLICKSTREAM_TABLE", "clickstream"),
+        ecommerce_table_name=_get_env("ECOMMERCE_TABLE", "ecommerce"),
         batch_size=_get_int("BATCH_SIZE", 100),
         interval_seconds=_get_int("INTERVAL_SECONDS", 60),
     )

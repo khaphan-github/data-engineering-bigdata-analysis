@@ -275,6 +275,7 @@ services:
     networks:
       - hadoop_network
 
+  # Job to jenerate simulator data
   jobs:
     <<: *resource_2gb
     build: ./jobs
@@ -295,6 +296,8 @@ services:
     networks:
       - hadoop_network
 
+  # Regions hive dataware house.
+  
   # great-expectations:
   #   build: ./great_expectations
   #   container_name: great-expectations

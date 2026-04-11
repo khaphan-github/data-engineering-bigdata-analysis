@@ -197,6 +197,7 @@ services:
       - namenode
     volumes:
       - ./volumes/workspace:/workspace
+      - ./notebook:/workspace/notebook
     ports:
       - "8888:8888"
     networks:

@@ -1,6 +1,6 @@
 FROM eclipse-temurin:8-jre
 
-ARG HIVE_VERSION=3.1.3
+ARG HIVE_VERSION=4.1.0
 ARG HADOOP_VERSION=3.3.6
 
 ENV HIVE_HOME=/opt/hive \

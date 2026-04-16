@@ -3,10 +3,12 @@
 Thư mục này chạy một stack Airflow riêng, có thể `spark-submit` job vào cụm Spark và ghi kết quả ra HDFS.
 
 ## Yêu Cầu
+
 - Docker và Docker Compose
 - Stack Hadoop/Spark chính ở `hadoop-environment/docker-compose.yml`
 
 ## Khởi Chạy Nhanh
+
 1. Bật stack Hadoop/Spark (tạo `hadoop_network`):
    ```bash
    docker compose -f hadoop-environment/docker-compose.yml up -d
@@ -20,17 +22,20 @@ Thư mục này chạy một stack Airflow riêng, có thể `spark-submit` job 
    - Tài khoản mặc định: `airflow / airflow`
 
 ## Thành Phần Có Sẵn
+
 - Image Airflow có Java + PySpark để chạy `spark-submit`.
 - DAG ở `./airflow/dags/`
 - App Spark mẫu ở `./airflow/apps/`
 - Dùng chung network `hadoop_network` để truy cập `spark-master` và `namenode`.
 
 ## Luồng Pipeline Ví Dụ
+
 1. Airflow trigger job Spark bằng `spark-submit`.
 2. Spark đọc dữ liệu từ PostgreSQL qua JDBC.
 3. Spark ghi output ra HDFS (`hdfs://namenode:8020/...`).
 
 ## Sơ Đồ Workflow (Mermaid)
+
 ```mermaid
 flowchart LR
   A[Airflow DAG] -->|spark-submit| B[Spark Master]
@@ -40,10 +45,12 @@ flowchart LR
 ```
 
 ## Đặt Code Ở Đâu
+
 - DAG: `hadoop-environment/airflow/airflow/dags/`
 - App Spark (PySpark): `hadoop-environment/airflow/airflow/apps/`
 
 ## Phát Triển 1 Job (Từng Bước)
+
 1. Tạo PySpark app trong `hadoop-environment/airflow/airflow/apps/`.
    - Ví dụ: `hadoop-environment/airflow/airflow/apps/pgsql_to_hdfs.py`
 2. Đảm bảo app đọc config từ env:
@@ -59,19 +66,27 @@ flowchart LR
 5. Trigger DAG trên Airflow UI.
 
 ## DAG Mẫu
+
 Có sẵn DAG mẫu submit một PySpark app:
+
 - `hadoop-environment/airflow/airflow/dags/spark_submit_wordcount.py`
 
 Lệnh gọi:
+
 ```bash
 spark-submit --master spark://spark-master:7077 /opt/airflow/apps/wordcount.py
 ```
 
 ## DAG Postgres -> HDFS
+
 Có DAG đọc từ Postgres và ghi ra HDFS:
+
 - `hadoop-environment/airflow/airflow/dags/spark_submit_pgsql_to_hdfs.py`
+- `hadoop-environment/airflow/airflow/dags/ingestion_ecommerce_spark_submit_pgsql_to_hdfs.py`
+- `hadoop-environment/airflow/airflow/dags/ingestion_churn_spark_submit_pgsql_to_hdfs.py`
 
 Lệnh gọi:
+
 ```bash
 spark-submit --master spark://spark-master:7077 \
   --jars /opt/airflow/jars/postgresql-42.7.3.jar \
@@ -79,9 +94,17 @@ spark-submit --master spark://spark-master:7077 \
 ```
 
 Đường dẫn output mặc định:
+
 - `hdfs://namenode:8020/user/airflow/clickstream`
 
+Churn output mặc định:
+
+- `hdfs://namenode:8020/data/raw/churn/customers/dt=YYYY-MM-DD`
+- `hdfs://namenode:8020/data/raw/churn/orders/dt=YYYY-MM-DD`
+- watermark: `hdfs://namenode:8020/data/raw/churn/_metadata/orders_last_order_ts.txt`
+
 ## Triển Khai Trên Hệ Thống Hiện Tại
+
 1. Bật Hadoop/Spark (tạo `hadoop_network`):
    ```bash
    docker compose -f hadoop-environment/docker-compose.yml up -d
@@ -102,6 +125,7 @@ spark-submit --master spark://spark-master:7077 \
    ```
 
 ## Ghi Chú
+
 - Nếu bị lỗi permission khi mount volume:
   ```bash
   chmod -R 777 /airflow
@@ -110,8 +134,8 @@ spark-submit --master spark://spark-master:7077 \
 - Ví dụ output HDFS: `hdfs://namenode:8020/user/airflow/...`
 
 ## Bước Tiếp Theo
+
 - Viết PySpark job mới để đọc Postgres và ghi ra HDFS.
 - Thêm DAG gọi job đó bằng `spark-submit`.
-
 
 sudo chown -R 50000:0 hadoop-environment/airflow/airflow

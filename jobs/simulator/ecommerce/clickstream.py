@@ -79,4 +79,3 @@ def insert_batch(cur, table_name: str, rows: Iterable[Tuple[str, str, str, str, 
         "VALUES %s"
     )
     execute_values(cur, sql, rows, page_size=500)
-

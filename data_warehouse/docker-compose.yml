@@ -19,29 +19,11 @@ services:
     networks:
       - hadoop_network
 
-  dtwarehouse-zookeeper:
-    image: zookeeper:3.8
-    container_name: dtwarehouse-zookeeper
-    hostname: dtwarehouse-zookeeper
-    ports:
-      - "2181:2181" # ZooKeeper client
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          'bash -lc "timeout 2 bash -lc ''</dev/tcp/127.0.0.1/2181''"',
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    networks:
-      - hadoop_network
 
   dtwarehouse-hive:
     build:
       context: ./hive
-    image: data-warehouse-hive:3.1.3
+    image: data-warehouse-hive:4.1.0
     container_name: dtwarehouse-hive
     hostname: dtwarehouse-hive
     environment:
@@ -68,22 +50,41 @@ services:
     networks:
       - hadoop_network
 
-  dtwarehouse-hbase:
-    build:
-      context: ./hbase
-    image: data-warehouse-hbase:2.4.17
-    container_name: dtwarehouse-hbase
-    hostname: dtwarehouse-hbase
-    depends_on:
-      dtwarehouse-zookeeper:
-        condition: service_healthy
-    ports:
-      - "16010:16010" # HBase Master UI
-      - "16000:16000" # HBase Master RPC
-    volumes:
-      - ../volumes/hbase:/opt/hbase-data
-    networks:
-      - hadoop_network
+  # dtwarehouse-hbase:
+  #   build:
+  #     context: ./hbase
+  #   image: data-warehouse-hbase:2.4.17
+  #   container_name: dtwarehouse-hbase
+  #   hostname: dtwarehouse-hbase
+  #   depends_on:
+  #     dtwarehouse-zookeeper:
+  #       condition: service_healthy
+  #   ports:
+  #     - "16010:16010" # HBase Master UI
+  #     - "16000:16000" # HBase Master RPC
+  #   volumes:
+  #     - ../volumes/hbase:/opt/hbase-data
+  #   networks:
+  #     - hadoop_network
+  # dtwarehouse-zookeeper:
+  #   image: zookeeper:3.8
+  #   container_name: dtwarehouse-zookeeper
+  #   hostname: dtwarehouse-zookeeper
+  #   ports:
+  #     - "2181:2181" # ZooKeeper client
+  #   healthcheck:
+  #     test:
+  #       [
+  #         "CMD-SHELL",
+  #         'bash -lc "timeout 2 bash -lc ''</dev/tcp/127.0.0.1/2181''"',
+  #       ]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 10
+  #     start_period: 20s
+  #   networks:
+  #     - hadoop_network
+
 
 networks:
   hadoop_network:

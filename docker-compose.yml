@@ -15,11 +15,11 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres_airflow/airflow
     AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres_airflow/airflow
     AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
-    AIRFLOW__CORE__FERNET_KEY: ''
-    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
-    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-    AIRFLOW__API__AUTH_BACKEND: 'airflow.api.auth.backend.basic_auth'
-    AIRFLOW__CORE__LOAD_REQUIREMENTS: './requirements.txt'
+    AIRFLOW__CORE__FERNET_KEY: ""
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__API__AUTH_BACKEND: "airflow.api.auth.backend.basic_auth"
+    AIRFLOW__CORE__LOAD_REQUIREMENTS: "./requirements.txt"
     AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: 5
     SPARK_MASTER_URL: ${SPARK_MASTER_URL:-spark://spark-master:7077}
   volumes:
@@ -88,8 +88,8 @@ services:
     command: version && airflow db init
     environment:
       <<: *airflow-common-env
-      _AIRFLOW_DB_UPGRADE: 'true'
-      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_DB_UPGRADE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
       _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-airflow}
       _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
 
@@ -197,12 +197,17 @@ services:
       - namenode
     volumes:
       - ./volumes/workspace:/workspace
+      - ./notebook:/workspace/notebook
     ports:
       - "8888:8888"
     networks:
       - hadoop_network
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8888/api > /dev/null || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://localhost:8888/api > /dev/null || exit 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -219,8 +224,8 @@ services:
       - PYSPARK_PYTHON=${PYSPARK_PYTHON}
       - PYSPARK_DRIVER_PYTHON=${PYSPARK_DRIVER_PYTHON}
     ports:
-      - "8090:8080"  # Spark Master Web UI
-      - "7077:7077"  # Spark Master Port
+      - "8090:8080" # Spark Master Web UI
+      - "7077:7077" # Spark Master Port
     command: bash -c "/opt/spark/bin/spark-class org.apache.spark.deploy.master.Master --host spark-master --port 7077 --webui-port 8080"
 
   spark-worker-1:
@@ -236,7 +241,7 @@ services:
       - PYSPARK_PYTHON=${PYSPARK_PYTHON}
       - PYSPARK_DRIVER_PYTHON=${PYSPARK_DRIVER_PYTHON}
     ports:
-      - "8091:8081"  # Worker Web UI
+      - "8091:8081" # Worker Web UI
     depends_on:
       - spark-master
     command: bash -c "/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 --cores 2 --memory 2g --webui-port 8081"
@@ -254,7 +259,7 @@ services:
       - PYSPARK_PYTHON=${PYSPARK_PYTHON}
       - PYSPARK_DRIVER_PYTHON=${PYSPARK_DRIVER_PYTHON}
     ports:
-      - "8092:8082"  # Worker Web UI
+      - "8092:8082" # Worker Web UI
     depends_on:
       - spark-master
     command: bash -c "/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 --cores 2 --memory 2g --webui-port 8082"
@@ -287,17 +292,26 @@ services:
       - POSTGRES_HOST=${POSTGRES_HOST}
       - POSTGRES_PORT=${POSTGRES_PORT}
       - POSTGRES_DB=${POSTGRES_DB}
+      - SIMULATOR_POSTGRES_DB=${SIMULATOR_POSTGRES_DB}
+      - POSTGRES_ADMIN_DB=${POSTGRES_ADMIN_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - CLICKSTREAM_TABLE=${CLICKSTREAM_TABLE}
       - ECOMMERCE_TABLE=${ECOMMERCE_TABLE}
+      - CHURN_CUSTOMERS_TABLE=${CHURN_CUSTOMERS_TABLE}
+      - CHURN_ORDERS_TABLE=${CHURN_ORDERS_TABLE}
       - BATCH_SIZE=${BATCH_SIZE}
       - INTERVAL_SECONDS=${INTERVAL_SECONDS}
+      - CHURN_SEED_CUSTOMERS=${CHURN_SEED_CUSTOMERS}
+      - CHURN_SEED_DAYS=${CHURN_SEED_DAYS}
+      - CHURN_ORDER_BATCH_SIZE=${CHURN_ORDER_BATCH_SIZE}
+      - BASE_CHURN_RATE=${BASE_CHURN_RATE}
+      - SIMULATOR_RANDOM_SEED=${SIMULATOR_RANDOM_SEED}
     networks:
       - hadoop_network
 
   # Regions hive dataware house.
-  
+
   # great-expectations:
   #   build: ./great_expectations
   #   container_name: great-expectations
@@ -321,38 +335,38 @@ services:
   #     - hadoop_network
 
   # nginx:
-    # image: nginx:1.27-alpine
-    # container_name: nginx
-    # hostname: nginx
-    # depends_on:
-    #   - postgres_airflow
-    #   - redis
-    #   - airflow-webserver
-    #   - airflow-scheduler
-    #   - airflow-worker
-    #   - airflow-init
-    #   - namenode
-    #   - nodemanager1
-    #   - datanode1
-    #   - datanode2
-    #   - datanode3
-    #   - notebook
-    #   - resourcemanager
-    #   - historyserver
-    #   - spark-master
-    #   - spark-worker-1
-    #   - spark-worker-2
-    #   - postgres
-    #   - jobs
-    # ports:
-    #   - "8085:80"
-    # volumes:
-    #   - ./nginx/conf.d:/etc/nginx/conf.d:ro
-    #   - ./nginx/html:/usr/share/nginx/html:ro
-    # networks:
-    #   - hadoop_network
-    # restart: unless-stopped
-  
+  # image: nginx:1.27-alpine
+  # container_name: nginx
+  # hostname: nginx
+  # depends_on:
+  #   - postgres_airflow
+  #   - redis
+  #   - airflow-webserver
+  #   - airflow-scheduler
+  #   - airflow-worker
+  #   - airflow-init
+  #   - namenode
+  #   - nodemanager1
+  #   - datanode1
+  #   - datanode2
+  #   - datanode3
+  #   - notebook
+  #   - resourcemanager
+  #   - historyserver
+  #   - spark-master
+  #   - spark-worker-1
+  #   - spark-worker-2
+  #   - postgres
+  #   - jobs
+  # ports:
+  #   - "8085:80"
+  # volumes:
+  #   - ./nginx/conf.d:/etc/nginx/conf.d:ro
+  #   - ./nginx/html:/usr/share/nginx/html:ro
+  # networks:
+  #   - hadoop_network
+  # restart: unless-stopped
+
 networks:
   hadoop_network:
     name: hadoop_network

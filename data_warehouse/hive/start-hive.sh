@@ -25,7 +25,7 @@ wait_for_tcp() {
 }
 
 ensure_hdfs_dirs() {
-  wait_for_tcp namenode 8020 60
+  wait_for_tcp dists-hdfs-namenode 8020 60
 
   for i in {1..60}; do
     if ${HADOOP_HOME}/bin/hdfs dfs -ls / >/dev/null 2>&1; then
@@ -41,7 +41,7 @@ ensure_hdfs_dirs() {
 
 case "${HIVE_SERVICE_ROLE}" in
   metastore)
-    wait_for_tcp dtwarehouse-postgres 5432 60
+    wait_for_tcp dists-hive-metastore-db 5432 60
 
     # Initialize schema once; retries remain safe because schematool -info guards it.
     if ! ${HIVE_HOME}/bin/schematool -dbType postgres -info >/dev/null 2>&1; then
@@ -52,7 +52,7 @@ case "${HIVE_SERVICE_ROLE}" in
     ;;
 
   hiveserver2)
-    wait_for_tcp dtwarehouse-metastore 9083 60
+    wait_for_tcp dists-hive-metastore 9083 60
     ensure_hdfs_dirs
 
     exec ${HIVE_HOME}/bin/hiveserver2

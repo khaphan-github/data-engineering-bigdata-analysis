@@ -10,7 +10,7 @@ services:
     ports:
       - "5433:5432" # PostgreSQL (host:container)
     volumes:
-      - ../volumes/dtwarehouse-postgres:/var/lib/postgresql/data
+      - ../volumes/dists-hive-metastore-db:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U hive -d metastore"]
       interval: 10s
@@ -117,3 +117,4 @@ networks:
   hadoop_network:
     external: true
 
+# DEPRECATED: Use root docker-compose.yml instead

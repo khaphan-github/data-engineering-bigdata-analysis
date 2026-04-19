@@ -86,7 +86,7 @@
 
         <property>
                 <name>dfs.client.use.datanode.hostname</name>
-                <value>true</value>
+                <value>false</value>
                 <description>
                         Whether clients should use datanode hostnames when
                         connecting to datanodes.
@@ -95,18 +95,10 @@
 
         <property>
                 <name>dfs.datanode.use.datanode.hostname</name>
-                <value>true</value>
+                <value>false</value>
                 <description>
                         Whether datanodes should use datanode hostnames when
                         connecting to other datanodes for data transfer.
-                </description>
-        </property>
-
-        <property>
-                <name>dfs.datanode.hostname</name>
-                <value>${HOSTNAME}</value>
-                <description>
-                        Use each container's hostname for WebHDFS redirects.
                 </description>
         </property>
 </configuration>

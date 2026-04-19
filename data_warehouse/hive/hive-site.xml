@@ -11,7 +11,7 @@
   </property>
   <property>
     <name>hive.metastore.uris</name>
-    <value>thrift://dtwarehouse-metastore:9083</value>
+    <value>thrift://dists-hive-metastore:9083</value>
   </property>
   <property>
     <name>hive.metastore.event.db.notification.api.auth</name>
@@ -19,7 +19,7 @@
   </property>
   <property>
     <name>javax.jdo.option.ConnectionURL</name>
-    <value>jdbc:postgresql://dtwarehouse-postgres:5432/metastore</value>
+    <value>jdbc:postgresql://dists-hive-metastore-db:5432/metastore</value>
   </property>
   <property>
     <name>javax.jdo.option.ConnectionDriverName</name>

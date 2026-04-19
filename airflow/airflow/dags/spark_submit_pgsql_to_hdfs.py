@@ -20,7 +20,7 @@ with DAG(
         task_id="submit_pgsql_to_hdfs",
         bash_command=(
             "spark-submit "
-            "--master ${SPARK_MASTER_URL:-spark://spark-master:7077} "
+            "--master ${SPARK_MASTER_URL:-spark://ingest-spark-master:7077} "
             f"--jars {POSTGRES_JAR} "
             f"{SPARK_APP}"
         ),

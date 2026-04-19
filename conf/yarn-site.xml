@@ -28,7 +28,7 @@
 
         <property>
                 <name>yarn.log.server.url</name>
-                <value>http://historyserver:8188/applicationhistory/logs/</value>
+                <value>http://dists-hdfs-historyserver:8188/applicationhistory/logs/</value>
                 <description>
                         URL for log aggregation server
                 </description>
@@ -71,22 +71,22 @@
 
         <property>
                 <name>yarn.resourcemanager.hostname</name>
-                <value>resourcemanager</value>
+                <value>dists-hdfs-resourcemanager</value>
         </property>
 
         <property>
                 <name>yarn.resourcemanager.address</name>
-                <value>resourcemanager:8032</value>
+                <value>dists-hdfs-resourcemanager:8032</value>
         </property>
 
         <property>
                 <name>yarn.resourcemanager.scheduler.address</name>
-                <value>resourcemanager:8030</value>
+                <value>dists-hdfs-resourcemanager:8030</value>
         </property>
 
         <property>
                 <name>yarn.resourcemanager.resource-tracker.address</name>
-                <value>resourcemanager:8031</value>
+                <value>dists-hdfs-resourcemanager:8031</value>
         </property>
 
         <property>
@@ -101,7 +101,7 @@
 
         <property>
                 <name>yarn.timeline-service.hostname</name>
-                <value>historyserver</value>
+                <value>dists-hdfs-historyserver</value>
         </property>
 
         <property>

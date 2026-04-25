@@ -2,3 +2,4 @@
 volumes
 .venv
 .codex
+data_warehouse/hive/deps/

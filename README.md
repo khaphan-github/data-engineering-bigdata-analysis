@@ -32,7 +32,7 @@ docker compose logs -f
 - Spark Master RPC: `spark://localhost:7077`
 - Jupyter: `http://localhost:8888`
 - Minio amdin: `http://localhost:9001` (username: `minioadmin`, password: `minioadmin`)
-
+- Mlflow: http://localhost:5001
 ## Screenshots
 
 ### Cluster Overview

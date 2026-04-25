@@ -3,3 +3,5 @@ volumes
 .venv
 .codex
 data_warehouse/hive/deps/
+serving_models/production/
+serving_models/testing/

@@ -1,0 +1,12 @@
+id,first_name,last_name,email,password,street,city,state,zip_code
+1,John,Doe,john.doe@example.com,pwd123,123 Main St,Pico Rivera,California,90660
+2,Jane,Smith,jane.smith@example.com,pwd456,456 Oak Ave,Los
+Angeles,California,90001
+3,Bob,Johnson,bob.j@example.com,pwd789,789 Pine St,Dallas,Texas,75201
+4,Alice,Williams,alice.w@example.com,pwd321,321 Cedar Rd,Seattle,Washington,98101
+5,Tom,Brown,tom.b@example.com,pwd654,654 Birch Blvd,Pico Rivera,California,90660
+6,Lisa,Taylor,lisa.t@example.com,pwd987,987 Elm St,New York,New York,10001
+7,David,Lee,david.l@example.com,pwdabc,111 Maple Dr,Austin,Texas,73301
+8,Susan,Miller,susan.m@example.com,pwddef,222 Walnut Ln,Miami,Florida,33101
+9,Chris,Wilson,chris.w@example.com,pwdghi,333 Chestnut Ave,Chicago,Illinois,60601
+10,Nancy,Moore,nancy.m@example.com,pwdjkl,444 Ash St,Pico Rivera,California,90660

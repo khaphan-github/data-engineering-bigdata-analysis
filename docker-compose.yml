@@ -51,6 +51,23 @@ x-spark-base: &spark_base
   networks:
     - hadoop_network
 
+x-minio-common: &minio-common
+  image: quay.io/minio/minio:RELEASE.2024-08-17T01-24-54Z
+  command: server --console-address ":9001" http://minio{1...4}/data{1...2}
+  expose:
+    - "9000"
+    - "9001"
+  environment:
+    MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+    MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+  healthcheck:
+    test: ["CMD", "mc", "ready", "local"]
+    interval: 5s
+    timeout: 5s
+    retries: 5
+  networks:
+    - hadoop_network
+
 services:
   orches-airflow-postgres:
     <<: *resource_2gb
@@ -408,6 +425,56 @@ services:
       start_period: 60s
     volumes:
       - *hive_hadoop_conf_mount
+    networks:
+      - hadoop_network
+
+  # Object storage cluster MinIO.
+  minio1:
+    <<: *minio-common
+    container_name: dists-minio1
+    hostname: minio1
+    volumes:
+      - ./volumes/minio/minio1/data1:/data1
+      - ./volumes/minio/minio1/data2:/data2
+
+  minio2:
+    <<: *minio-common
+    container_name: dists-minio2
+    hostname: minio2
+    volumes:
+      - ./volumes/minio/minio2/data1:/data1
+      - ./volumes/minio/minio2/data2:/data2
+
+  minio3:
+    <<: *minio-common
+    container_name: dists-minio3
+    hostname: minio3
+    volumes:
+      - ./volumes/minio/minio3/data1:/data1
+      - ./volumes/minio/minio3/data2:/data2
+
+  minio4:
+    <<: *minio-common
+    container_name: dists-minio4
+    hostname: minio4
+    volumes:
+      - ./volumes/minio/minio4/data1:/data1
+      - ./volumes/minio/minio4/data2:/data2
+
+  dists-minio-nginx:
+    image: nginx:1.19.2-alpine
+    container_name: dists-minio-nginx
+    hostname: dists-minio-nginx
+    volumes:
+      - ./nginx/minio-nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    depends_on:
+      - minio1
+      - minio2
+      - minio3
+      - minio4
     networks:
       - hadoop_network
 

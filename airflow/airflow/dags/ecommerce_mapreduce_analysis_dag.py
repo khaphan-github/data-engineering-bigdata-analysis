@@ -21,7 +21,7 @@ with DAG(
             "PYSPARK_PYTHON=python3 "
             "PYSPARK_DRIVER_PYTHON=python3 "
             "spark-submit "
-            "--master ${SPARK_MASTER_URL:-spark://spark-master:7077} "
+            "--master ${SPARK_MASTER_URL:-spark://ingest-spark-master:7077} "
             "--conf spark.pyspark.python=python3 "
             "--conf spark.pyspark.driver.python=python3 "
             f"{SPARK_APP}"

@@ -2,13 +2,14 @@ FROM apache/airflow:2.10.2
 
 USER root
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends openjdk-17-jre-headless procps \
+    && apt-get install -y --no-install-recommends openjdk-17-jre-headless procps curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 ARG SPARK_VERSION=3.5.1
 ARG HADOOP_VERSION=3
-RUN tar -xzf /tmp/spark.tgz -C /opt \
+RUN curl -fsSL https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz -o /tmp/spark.tgz \
+    && tar -xzf /tmp/spark.tgz -C /opt \
     && ln -s /opt/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} /opt/spark \
     && rm -f /tmp/spark.tgz
 

@@ -1,8 +1,9 @@
-version: "2.4"
-
 x-resource-2gb: &resource_2gb
   mem_limit: 2g
   mem_reservation: 2g
+
+x-hadoop-conf-mount: &hadoop_conf_mount ./conf:/etc/hadoop:ro
+x-hive-hadoop-conf-mount: &hive_hadoop_conf_mount ./conf:/opt/hadoop/etc/hadoop:ro
 
 x-airflow-common: &airflow-common
   build: ./airflow
@@ -12,23 +13,23 @@ x-airflow-common: &airflow-common
     - ./.env
   environment: &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-    AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres_airflow/airflow
-    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres_airflow/airflow
-    AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
+    AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@orches-airflow-postgres/airflow
+    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@orches-airflow-postgres/airflow
+    AIRFLOW__CELERY__BROKER_URL: redis://:@orches-airflow-redis:6379/0
     AIRFLOW__CORE__FERNET_KEY: ""
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
     AIRFLOW__API__AUTH_BACKEND: "airflow.api.auth.backend.basic_auth"
     AIRFLOW__CORE__LOAD_REQUIREMENTS: "./requirements.txt"
     AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: 5
-    SPARK_MASTER_URL: ${SPARK_MASTER_URL:-spark://spark-master:7077}
+    SPARK_MASTER_URL: ${SPARK_MASTER_URL:-spark://ingest-spark-master:7077}
   volumes:
     - ./airflow/airflow:/opt/airflow
     - ./airflow/deps:/opt/airflow/deps
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
-    - postgres_airflow
-    - redis
+    - orches-airflow-postgres
+    - orches-airflow-redis
   networks:
     - hadoop_network
 
@@ -37,7 +38,7 @@ x-datanode-base: &datanode_base
   <<: *resource_2gb
   cpus: "1.0"
   depends_on:
-    - namenode
+    - dists-hdfs-namenode
   networks:
     - hadoop_network
 
@@ -51,9 +52,11 @@ x-spark-base: &spark_base
     - hadoop_network
 
 services:
-  postgres_airflow:
+  orches-airflow-postgres:
     <<: *resource_2gb
     image: postgres:13
+    container_name: orches-airflow-postgres
+    hostname: orches-airflow-postgres
     environment:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
@@ -63,27 +66,29 @@ services:
     networks:
       - hadoop_network
 
-  redis:
+  orches-airflow-redis:
     <<: *resource_2gb
     image: redis:latest
+    container_name: orches-airflow-redis
+    hostname: orches-airflow-redis
     networks:
       - hadoop_network
 
-  airflow-webserver:
+  orches-airflow-webserver:
     <<: [*airflow-common, *resource_2gb]
     command: webserver
     ports:
       - "8080:8080"
 
-  airflow-scheduler:
+  orches-airflow-scheduler:
     <<: [*airflow-common, *resource_2gb]
     command: scheduler
 
-  airflow-worker:
+  orches-airflow-worker:
     <<: [*airflow-common, *resource_2gb]
     command: celery worker
 
-  airflow-init:
+  orches-airflow-init:
     <<: [*airflow-common, *resource_2gb]
     command: version && airflow db init
     environment:
@@ -93,16 +98,17 @@ services:
       _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-airflow}
       _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
 
-  namenode:
+  dists-hdfs-namenode:
     <<: *resource_2gb
     build: ./namenode
-    container_name: namenode
-    hostname: namenode
+    container_name: dists-hdfs-namenode
+    hostname: dists-hdfs-namenode
     cpus: "1.0"
     volumes:
-      - ./volumes/namenode:/hadoop/dfs/name
+      - ./volumes/dists-hdfs-namenode:/hadoop/dfs/name
       - ./volumes/data:/hadoop-data/input
       - ./volumes/map_reduce:/hadoop-data/map_reduce
+      - *hadoop_conf_mount
     environment:
       - CLUSTER_NAME=${CLUSTER_NAME}
     ports:
@@ -111,92 +117,106 @@ services:
     networks:
       - hadoop_network
 
-  resourcemanager:
+  dists-hdfs-resourcemanager:
     <<: *resource_2gb
     build: ./resourcemanager
-    container_name: resourcemanager
-    hostname: resourcemanager
+    container_name: dists-hdfs-resourcemanager
+    hostname: dists-hdfs-resourcemanager
     cpus: "1.0"
     restart: on-failure
     depends_on:
-      - namenode
-      - datanode1
-      - datanode2
-      - datanode3
+      - dists-hdfs-namenode
+      - dists-hdfs-datanode-1
+      - dists-hdfs-datanode-2
+      - dists-hdfs-datanode-3
     ports:
       - "8089:8088"
+    volumes:
+      - *hadoop_conf_mount
     networks:
       - hadoop_network
 
-  historyserver:
+  dists-hdfs-historyserver:
     <<: *resource_2gb
     build: ./historyserver
-    container_name: historyserver
-    hostname: historyserver
+    container_name: dists-hdfs-historyserver
+    hostname: dists-hdfs-historyserver
     cpus: "0.5"
     depends_on:
-      - namenode
-      - datanode1
-      - datanode2
+      - dists-hdfs-namenode
+      - dists-hdfs-datanode-1
+      - dists-hdfs-datanode-2
     volumes:
-      - ./volumes/historyserver:/hadoop/yarn/timeline
+      - ./volumes/dists-hdfs-historyserver:/hadoop/yarn/timeline
+      - *hadoop_conf_mount
     ports:
       - "8188:8188"
     networks:
       - hadoop_network
 
-  nodemanager1:
+  dists-hdfs-nodemanager-1:
     <<: *resource_2gb
     build: ./nodemanager
-    container_name: nodemanager1
-    hostname: nodemanager1
+    container_name: dists-hdfs-nodemanager-1
+    hostname: dists-hdfs-nodemanager-1
     cpus: "1.0"
     depends_on:
-      - namenode
-      - datanode1
-      - datanode2
+      - dists-hdfs-namenode
+      - dists-hdfs-datanode-1
+      - dists-hdfs-datanode-2
     ports:
       - "8042:8042"
+    volumes:
+      - *hadoop_conf_mount
     networks:
       - hadoop_network
 
-  datanode1:
+  dists-hdfs-datanode-1:
     <<: *datanode_base
-    container_name: datanode1
-    hostname: datanode1
+    container_name: dists-hdfs-datanode-1
+    hostname: dists-hdfs-datanode-1
     volumes:
-      - ./volumes/datanode1:/hadoop/dfs/data
+      - ./volumes/dists-hdfs-datanode-1:/hadoop/dfs/data
+      - *hadoop_conf_mount
     ports:
       - "9864:9864"
+    networks:
+      - hadoop_network
 
-  datanode2:
+  dists-hdfs-datanode-2:
     <<: *datanode_base
-    container_name: datanode2
-    hostname: datanode2
+    container_name: dists-hdfs-datanode-2
+    hostname: dists-hdfs-datanode-2
     volumes:
-      - ./volumes/datanode2:/hadoop/dfs/data
+      - ./volumes/dists-hdfs-datanode-2:/hadoop/dfs/data
+      - *hadoop_conf_mount
     ports:
       - "9865:9864"
+    networks:
+      - hadoop_network
 
-  datanode3:
+  dists-hdfs-datanode-3:
     <<: *datanode_base
-    container_name: datanode3
-    hostname: datanode3
+    container_name: dists-hdfs-datanode-3
+    hostname: dists-hdfs-datanode-3
     volumes:
-      - ./volumes/datanode3:/hadoop/dfs/data
+      - ./volumes/dists-hdfs-datanode-3:/hadoop/dfs/data
+      - *hadoop_conf_mount
     ports:
       - "9866:9864"
+    networks:
+      - hadoop_network
 
-  notebook:
+  work-notebook:
     <<: *resource_2gb
     build: ./notebook
-    container_name: notebook
-    hostname: notebook
+    container_name: work-notebook
+    hostname: work-notebook
     cpus: "1.0"
     depends_on:
-      - namenode
+      - dists-hdfs-namenode
     volumes:
-      - ./volumes/workspace:/workspace
+      - ./volumes/work-notebook:/workspace
       - ./notebook:/workspace/notebook
     ports:
       - "8888:8888"
@@ -211,9 +231,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
-  spark-master:
+  ingest-spark-master:
     <<: *spark_base
-    container_name: spark-master
+    container_name: ingest-spark-master
+    hostname: ingest-spark-master
     cpus: "2.0"
     environment:
       - SPARK_MODE=${SPARK_MODE}
@@ -226,11 +247,12 @@ services:
     ports:
       - "8090:8080" # Spark Master Web UI
       - "7077:7077" # Spark Master Port
-    command: bash -c "/opt/spark/bin/spark-class org.apache.spark.deploy.master.Master --host spark-master --port 7077 --webui-port 8080"
+    command: bash -c "/opt/spark/bin/spark-class org.apache.spark.deploy.master.Master --host ingest-spark-master --port 7077 --webui-port 8080"
 
-  spark-worker-1:
+  ingest-spark-worker-1:
     <<: *spark_base
-    container_name: spark-worker-1
+    container_name: ingest-spark-worker-1
+    hostname: ingest-spark-worker-1
     cpus: "2.0"
     environment:
       - SPARK_MASTER_URL=${SPARK_MASTER_URL}
@@ -243,12 +265,13 @@ services:
     ports:
       - "8091:8081" # Worker Web UI
     depends_on:
-      - spark-master
-    command: bash -c "/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 --cores 2 --memory 2g --webui-port 8081"
+      - ingest-spark-master
+    command: bash -c "/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://ingest-spark-master:7077 --cores 2 --memory 2g --webui-port 8081"
 
-  spark-worker-2:
+  ingest-spark-worker-2:
     <<: *spark_base
-    container_name: spark-worker-2
+    container_name: ingest-spark-worker-2
+    hostname: ingest-spark-worker-2
     cpus: "2.0"
     environment:
       - SPARK_MASTER_URL=${SPARK_MASTER_URL}
@@ -261,14 +284,14 @@ services:
     ports:
       - "8092:8082" # Worker Web UI
     depends_on:
-      - spark-master
-    command: bash -c "/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 --cores 2 --memory 2g --webui-port 8082"
+      - ingest-spark-master
+    command: bash -c "/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://ingest-spark-master:7077 --cores 2 --memory 2g --webui-port 8082"
   # Soruce system:
-  postgres:
+  srcs-ecommerce-postgres:
     <<: *resource_2gb
     image: postgres:15
-    container_name: postgres
-    hostname: postgres
+    container_name: srcs-ecommerce-postgres
+    hostname: srcs-ecommerce-postgres
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -276,18 +299,18 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./volumes/postgres:/var/lib/postgresql/data
+      - ./volumes/srcs-ecommerce-postgres:/var/lib/postgresql/data
     networks:
       - hadoop_network
 
   # Job to jenerate simulator data
-  jobs:
+  srcs-ecommerce-simulator:
     <<: *resource_2gb
     build: ./jobs
-    container_name: jobs
-    hostname: jobs
+    container_name: srcs-ecommerce-simulator
+    hostname: srcs-ecommerce-simulator
     depends_on:
-      - postgres
+      - srcs-ecommerce-postgres
     environment:
       - POSTGRES_HOST=${POSTGRES_HOST}
       - POSTGRES_PORT=${POSTGRES_PORT}
@@ -311,6 +334,82 @@ services:
       - hadoop_network
 
   # Regions hive dataware house.
+  dists-hive-metastore-db:
+    image: postgres:15
+    container_name: dists-hive-metastore-db
+    hostname: dists-hive-metastore-db
+    environment:
+      - POSTGRES_DB=metastore
+      - POSTGRES_USER=hive
+      - POSTGRES_PASSWORD=admin@123
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./volumes/dists-hive-metastore-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hive -d metastore"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - hadoop_network
+
+  dists-hive-metastore:
+    build:
+      context: ./data_warehouse/hive
+    image: data-warehouse-hive:4.1.0
+    container_name: dists-hive-metastore
+    hostname: dists-hive-metastore
+    environment:
+      - HIVE_SERVICE_ROLE=metastore
+    depends_on:
+      dists-hive-metastore-db:
+        condition: service_healthy
+    ports:
+      - "9083:9083"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'bash -lc "timeout 2 bash -lc ''</dev/tcp/127.0.0.1/9083''"',
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    volumes:
+      - *hive_hadoop_conf_mount
+    networks:
+      - hadoop_network
+
+  dists-hive-hiveserver2:
+    image: data-warehouse-hive:4.1.0
+    container_name: dists-hive-hiveserver2
+    hostname: dists-hive-hiveserver2
+    environment:
+      - HIVE_SERVICE_ROLE=hiveserver2
+    depends_on:
+      dists-hive-metastore-db:
+        condition: service_healthy
+      dists-hive-metastore:
+        condition: service_healthy
+    ports:
+      - "10000:10000"
+      - "10002:10002"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'bash -lc "timeout 2 bash -lc ''</dev/tcp/127.0.0.1/10000''"',
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    volumes:
+      - *hive_hadoop_conf_mount
+    networks:
+      - hadoop_network
 
   # great-expectations:
   #   build: ./great_expectations
@@ -327,7 +426,7 @@ services:
   #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
   #   volumes:
   #     - ./great_expectations:/opt/gx
-  #     - ./volumes/workspace:/workspace
+  #     - ./volumes/work-notebook:/workspace
   #   ports:
   #     - "8093:8093"
   #   command: bash -lc "sleep infinity"
@@ -345,14 +444,14 @@ services:
   #   - airflow-scheduler
   #   - airflow-worker
   #   - airflow-init
-  #   - namenode
-  #   - nodemanager1
-  #   - datanode1
-  #   - datanode2
-  #   - datanode3
+  #   - dists-hdfs-namenode
+  #   - dists-hdfs-nodemanager-1
+  #   - dists-hdfs-datanode-1
+  #   - dists-hdfs-datanode-2
+  #   - dists-hdfs-datanode-3
   #   - notebook
-  #   - resourcemanager
-  #   - historyserver
+  #   - dists-hdfs-resourcemanager
+  #   - dists-hdfs-historyserver
   #   - spark-master
   #   - spark-worker-1
   #   - spark-worker-2

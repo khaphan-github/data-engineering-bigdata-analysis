@@ -11,7 +11,7 @@
   </property>
   <property>
     <name>hive.metastore.uris</name>
-    <value>thrift://dtwarehouse-hive:9083</value>
+    <value>thrift://dists-hive-metastore:9083</value>
   </property>
   <property>
     <name>hive.metastore.event.db.notification.api.auth</name>
@@ -19,7 +19,7 @@
   </property>
   <property>
     <name>javax.jdo.option.ConnectionURL</name>
-    <value>jdbc:postgresql://dtwarehouse-postgres:5432/metastore</value>
+    <value>jdbc:postgresql://dists-hive-metastore-db:5432/metastore</value>
   </property>
   <property>
     <name>javax.jdo.option.ConnectionDriverName</name>
@@ -36,5 +36,37 @@
   <property>
     <name>hive.server2.enable.doAs</name>
     <value>false</value>
+  </property>
+  <property>
+    <name>hive.execution.engine</name>
+    <value>tez</value>
+  </property>
+  <property>
+    <name>tez.runtime.io.sort.mb</name>
+    <value>512</value>
+  </property>
+  <property>
+    <name>tez.runtime.shuffle.mb</name>
+    <value>512</value>
+  </property>
+  <property>
+    <name>tez.session.client.timeout.secs</name>
+    <value>600</value>
+  </property>
+  <property>
+    <name>tez.am.container.reuse.enabled</name>
+    <value>true</value>
+  </property>
+  <property>
+    <name>hive.tez.auto.reduce.parallelism</name>
+    <value>true</value>
+  </property>
+  <property>
+    <name>hive.tez.min.partition.factor</name>
+    <value>0.25</value>
+  </property>
+  <property>
+    <name>hive.tez.max.partition.factor</name>
+    <value>2.0</value>
   </property>
 </configuration>

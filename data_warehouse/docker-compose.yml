@@ -10,7 +10,7 @@ services:
     ports:
       - "5433:5432" # PostgreSQL (host:container)
     volumes:
-      - ../volumes/dtwarehouse-postgres:/var/lib/postgresql/data
+      - ../volumes/dists-hive-metastore-db:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U hive -d metastore"]
       interval: 10s
@@ -19,34 +19,62 @@ services:
     networks:
       - hadoop_network
 
-
-  dtwarehouse-hive:
+  dtwarehouse-metastore:
     build:
       context: ./hive
     image: data-warehouse-hive:4.1.0
-    container_name: dtwarehouse-hive
-    hostname: dtwarehouse-hive
+    container_name: dtwarehouse-metastore
+    hostname: dtwarehouse-metastore
     environment:
-      - SERVICE_NAME=hiveserver2
+      - HIVE_SERVICE_ROLE=metastore
     depends_on:
       dtwarehouse-postgres:
         condition: service_healthy
     ports:
-      - "10000:10000" # HiveServer2
-      - "10002:10002" # Web UI
       - "9083:9083" # Metastore thrift
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          'bash -lc "timeout 2 bash -lc ''</dev/tcp/127.0.0.1/9083'' && timeout 2 bash -lc ''</dev/tcp/127.0.0.1/10000''"',
+          'bash -lc "timeout 2 bash -lc ''</dev/tcp/127.0.0.1/9083''"',
         ]
       interval: 15s
       timeout: 5s
       retries: 12
       start_period: 60s
     volumes:
-      - ../volumes/hive/warehouse:/warehouse
+      - ../conf/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ../conf/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml:ro
+    networks:
+      - hadoop_network
+
+  dtwarehouse-hiveserver2:
+    image: data-warehouse-hive:4.1.0
+    container_name: dtwarehouse-hiveserver2
+    hostname: dtwarehouse-hiveserver2
+    environment:
+      - HIVE_SERVICE_ROLE=hiveserver2
+    depends_on:
+      dtwarehouse-postgres:
+        condition: service_healthy
+      dtwarehouse-metastore:
+        condition: service_healthy
+    ports:
+      - "10000:10000" # HiveServer2
+      - "10002:10002" # Web UI
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'bash -lc "timeout 2 bash -lc ''</dev/tcp/127.0.0.1/10000''"',
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    volumes:
+      - ../conf/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ../conf/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml:ro
     networks:
       - hadoop_network
 
@@ -85,7 +113,8 @@ services:
   #   networks:
   #     - hadoop_network
 
-
 networks:
   hadoop_network:
     external: true
+
+# DEPRECATED: Use root docker-compose.yml instead

@@ -1,0 +1,11 @@
+FROM debezium/connect:2.7.3.Final
+
+USER root
+
+# Optional place for extra Kafka Connect plugins/JARs.
+RUN mkdir -p /kafka/connect/custom-plugins
+COPY connectors/ /kafka/connect/custom-plugins/
+
+ENV CONNECT_PLUGIN_PATH=/kafka/connect,/kafka/connect/custom-plugins
+
+USER kafka
